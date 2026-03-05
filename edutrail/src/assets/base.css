@@ -1,0 +1,20 @@
+/* EduTrail Tech-Blue Theme */
+:root {
+  --color-background: #E4F4FF;        /* Soft Light Blue */
+  --color-background-soft: #FFFFFF;
+  --color-background-mute: #E4F4FF;
+
+  --color-border: #0AC8B733;          /* Teal with opacity */
+  --color-border-hover: #0AC8B7;
+
+  --color-heading: #0A3D91;           /* Deep Tech Blue */
+  --color-text: #0A3D91;
+
+  --primary-blue: #0F8BFD;            /* Vibrant Blue */
+  --accent-teal: #0AC8B7;             /* Teal */
+  --light-background: #E4F4FF;
+  --white: #FFFFFF;
+
+  --section-gap: 160px;
+}
+
