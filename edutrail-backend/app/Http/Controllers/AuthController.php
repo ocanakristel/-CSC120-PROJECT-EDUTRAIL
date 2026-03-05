@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -113,6 +114,101 @@ class AuthController extends Controller
             return response()->json([
                 'data'  => null,
                 'error' => ['message' => 'Logout failed'],
+            ], 500);
+        }
+    }
+
+    public function update(Request $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            
+            if (!$user) {
+                return response()->json([
+                    'data'  => null,
+                    'error' => ['message' => 'Unauthorized'],
+                ], 401);
+            }
+
+            // Validate update data
+            $data = $request->validate([
+                'firstname'     => ['nullable', 'string', 'max:255'],
+                'lastname'      => ['nullable', 'string', 'max:255'],
+                'nickname'      => ['nullable', 'string', 'max:255'],
+                'gender'        => ['nullable', 'string', 'in:Male,Female,Other'],
+                'contact_number' => ['nullable', 'string', 'max:20'],
+            ]);
+
+            // sanity check: ensure database has required profile columns before doing any work
+            $requiredColumns = ['firstname', 'lastname', 'nickname', 'gender', 'contact_number'];
+            $missing = [];
+            foreach ($requiredColumns as $col) {
+                if (!Schema::hasColumn('users', $col)) {
+                    $missing[] = $col;
+                }
+            }
+            if (!empty($missing)) {
+                // log for the developer
+                \Log::error('AuthController::update missing user columns', ['missing' => $missing]);
+
+                return response()->json([
+                    'data' => null,
+                    'error' => [
+                        'message' => 'Database schema not up to date',
+                        'details' => 'Missing columns: ' . implode(', ', $missing) . '. Run migrations.',
+                    ],
+                ], 500);
+            }
+
+            // Update only provided fields (skip null values)
+            foreach ($data as $key => $value) {
+                if ($value !== null) {
+                    // skip columns that don't exist even if validation passed
+                    if (!Schema::hasColumn('users', $key)) {
+                        \Log::warning('AuthController::update skipping unknown column', ['column' => $key]);
+                        continue;
+                    }
+                    $user->$key = $value;
+                }
+            }
+
+            // Update name if either firstname or lastname was supplied
+            // (use safe array access to avoid undefined index errors)
+            $firstnameProvided = array_key_exists('firstname', $data);
+            $lastnameProvided  = array_key_exists('lastname', $data);
+
+            if ($firstnameProvided || $lastnameProvided) {
+                $firstname = $data['firstname'] ?? $user->firstname;
+                $lastname  = $data['lastname'] ?? $user->lastname;
+                $user->name = trim($firstname . ' ' . $lastname);
+            }
+
+            $user->save();
+
+            return response()->json([
+                'data'  => ['user' => $user],
+                'error' => null,
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'data'  => null,
+                'error' => [
+                    'message' => 'Validation failed',
+                    'details' => $e->errors(),
+                ],
+            ], 422);
+
+        } catch (\Throwable $e) {
+            // log full exception for debugging
+            \Log::error('AuthController::update error', ['exception' => $e]);
+
+            return response()->json([
+                'data'  => null,
+                'error' => [
+                    'message' => 'Failed to update profile',
+                    'details' => $e->getMessage(),
+                ],
             ], 500);
         }
     }

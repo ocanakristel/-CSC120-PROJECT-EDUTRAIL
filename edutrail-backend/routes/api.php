@@ -6,8 +6,12 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\StorageController;
+use App\Http\Controllers\FileProxyController;
 
 Route::post('/auth/sign-up', [AuthController::class, 'register']);
+
+// File proxy (no auth required for public files)
+Route::get('/files/serve/{filename}', [FileProxyController::class, 'serve']);
 
 Route::middleware('web')->group(function () {
     Route::post('/auth/sign-in', [AuthController::class, 'login']);
